@@ -1,0 +1,8 @@
+checkpoints/
+datasets/
+metadata/
+pictures/
+results/
+
+
+*.pt

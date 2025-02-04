@@ -1,0 +1,1 @@
+python /home/kdh/code/CLUE/train.py brain t1 axial
