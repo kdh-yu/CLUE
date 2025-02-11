@@ -48,14 +48,17 @@ for data in tqdm(data_list[train_idx]):
             sl_min = min(sl_min, s)
             sl_max = max(sl_max, s)
             
-    sl_start = (sl_min + sl_max) // 2 - 10
-    
-    for s in range(20):
-        train.append({
-            'image' : image_path,
-            'mask' : mask_path,
-            'slice' : sl_start+s
-        })
+    sl = (sl_min + sl_max) // 2
+    train.append({
+        'image' : image_path,
+        'mask' : mask_path,
+        'slice' : sl
+    })
+    train.append({
+        'image' : image_path,
+        'mask' : mask_path,
+        'slice' : sl_max + 2
+    })
 print('Train Data Finished!')
         
 ########## TEST ########## 
@@ -88,16 +91,20 @@ for data in tqdm(data_list[test_idx]):
             sl_min = min(sl_min, s)
             sl_max = max(sl_max, s)
             
-    sl_start = (sl_min + sl_max) // 2 - 10
+    sl = (sl_min + sl_max) // 2
     
-    for s in range(20):
-        test.append({
-            'image' : image_path,
-            'mask' : mask_path,
-            'slice' : sl_start+s
-        })
+    test.append({
+        'image' : image_path,
+        'mask' : mask_path,
+        'slice' : sl
+    })
+    test.append({
+        'image' : image_path,
+        'mask' : mask_path,
+        'slice' : sl_max + 2
+    })
 print('Test Data Finished!')
 
 ########## Write ########## 
-with open(f'metadata/meta_{sequence}_{view}.json', 'w') as f:
+with open(f'meta/meta_{sequence}_{view}.json', 'w') as f:
     json.dump({'train' : train, 'test' : test}, f, indent=4)

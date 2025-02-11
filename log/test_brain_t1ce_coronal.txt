@@ -1,0 +1,7 @@
+
+=== SUMMARY ===
+Average Image-AUROC: 51.2746%
+Average Image-Accuracy: 50.5875%
+Average Pixel-AUROC: 83.5244%
+============================
+

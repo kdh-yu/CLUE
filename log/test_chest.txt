@@ -1,5 +1,5 @@
 
 === SUMMARY ===
-Average Image-AUROC: 0.6403
+Average Image-AUROC: 50.0000%
 ============================
 

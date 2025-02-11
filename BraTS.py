@@ -50,3 +50,4 @@ class BraTSDataset(Dataset):
         mask = np.where(mask!=0, 1, 0)
             
         return image, mask
+   

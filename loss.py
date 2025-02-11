@@ -20,39 +20,40 @@ class DiceLoss(nn.Module):
         target = target.view(target.shape[0], -1)
         
         intersection = (pred * target).sum(dim=1)
-        dice = (2 * intersection + eps) / (pred.sum(dim=1) + target.sum(dim=1) + eps)
+        union = pred.sum(dim=1) + target.sum(dim=1)
+        
+        dice = torch.where(union > 0, (2 * intersection + eps) / (union + eps), torch.tensor(1.0, device=pred.device))
+        
         return (1 - dice).mean()
 
 class FocalLoss(nn.Module):
-    def __init__(self, alpha=1.0, gamma=2.0):
+    def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
+        self.reduction = reduction
 
     def forward(self, yhat, y):
-        yhat = yhat.view(yhat.shape[0], -1)
-        y = y.view(y.shape[0], -1)
-        nll_probs = -torch.log(yhat + 1e-8)
-        focal_loss = self.alpha * (1 - yhat)**self.gamma * nll_probs
+        y_one_hot = F.one_hot(y, num_classes=2).float()
+        bce_loss = F.binary_cross_entropy_with_logits(yhat, y_one_hot, reduction='none')
+        p_t = torch.exp(-bce_loss)
+        focal_loss = self.alpha * (1 - p_t) ** self.gamma * bce_loss
         return focal_loss.mean()
 
 def _label(matrix):
     return 1 - torch.all(matrix.view(matrix.shape[0], -1), dim=1).to(torch.int64)
 
 def get_image_label(mask):
-    """
-    mask에서 image-level label 생성
-    mask에 1이 하나라도 있으면 비정상(1), 아니면 정상(0)
-    """
-    return (mask.view(mask.shape[0], -1).sum(dim=1) > 0).long()
+    return (mask.view(mask.shape[0], -1).sum(dim=1) > 0).long()#.float()
 
 class Loss(nn.Module):
     def __init__(self, seg_weight=1.0, cls_weight=1.0):
         super().__init__()
         self.dice_loss = DiceLoss()
-        self.seg_weight = seg_weight  # segmentation loss 가중치
-        self.cls_weight = cls_weight  # classification loss 가중치
+        self.seg_weight = seg_weight  # segmentation loss
+        self.cls_weight = cls_weight  # classification loss
         self.ce_loss = nn.CrossEntropyLoss()
+        self.focal_loss = FocalLoss()
         
     def forward(self, score, amap, mask):
         """

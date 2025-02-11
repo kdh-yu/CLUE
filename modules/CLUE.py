@@ -5,20 +5,25 @@ from CLIP.clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 import torch.nn.functional as F
 
 class CLUE(nn.Module):
-    def __init__(self, device='cuda'):
+    def __init__(self, 
+                 token_length=32,
+                 device='cuda'):
         super().__init__()
         self.tokenizer = _Tokenizer()
-        self.model, _ = clip.load('ViT-B/32', device='cpu') 
-        
-        self.prompt_independent = nn.Parameter(torch.rand(16, 512).to(device))
-        self.prompt_dependent = nn.Parameter(torch.rand(16, 512).to(device))
+        self.model, _ = clip.load('ViT-L/14', device='cpu')
+        for param in self.model.parameters():
+            param.requires_grad = False
+        self.embedding_dim = self.model.visual.proj.shape[1]
+        self.token_length = token_length
+        self.prompt_dependent = nn.Parameter(torch.rand(token_length, self.embedding_dim).to(device))
+        self.prompt_independent = nn.Parameter(torch.rand(token_length, self.embedding_dim).to(device))
         self.device = device
         self.class_name = ['normal ', 'diseased ']
-        self.eos_length = 1 + 16 + 16 + 2 + 1
+        self.eos_length = 1 + self.token_length + token_length + 2 + 1
         self.mlp = nn.Sequential(
-            nn.Linear(512, 512),
+            nn.Linear(self.embedding_dim, self.embedding_dim),
             nn.ReLU(),
-            nn.Linear(512, 512)
+            nn.Linear(self.embedding_dim, self.embedding_dim)
         ).cuda()
     
     def get_text_embedding(self, x: str):
@@ -41,14 +46,6 @@ class CLUE(nn.Module):
         prompt = self.prompt_dependent.unsqueeze(0).cuda() + img_feat
         return prompt
     
-    def visual_prompt_similarity(self, vec):
-        # vec : [1, 49, 2]
-        FN = vec[:, :, 0].reshape(-1, 7, 7)
-        FA = vec[:, :, 1].reshape(-1, 7, 7)
-        anomaly_map = torch.exp(FA) / (torch.exp(FA) + torch.exp(FN))
-        anomaly_map = F.interpolate(anomaly_map.unsqueeze(1), mode='bilinear', size=(224, 224), align_corners=False).squeeze(1)
-        return anomaly_map
-    
     def forward(self, obj, image_features):
         image_feature = image_features[-1]
         prompt_final = []
@@ -62,7 +59,7 @@ class CLUE(nn.Module):
         
         # Normal
         CLS = self.get_text_embedding(self.class_name[0] + obj).unsqueeze(0).expand(B, -1, -1).cuda()
-        prompt_tmp = torch.concat([SOS, P_dependent, P_independent, CLS, EOS], dim=1).cuda()
+        prompt_tmp = torch.concat([SOS, CLS, P_independent, P_dependent, EOS], dim=1).cuda()
         prompt = torch.zeros(77, dtype=torch.long).cuda()
         prompt = self.model.token_embedding(prompt).unsqueeze(0).expand(B, -1, -1).cuda()
         for b in range(B):
@@ -73,7 +70,7 @@ class CLUE(nn.Module):
         
         # AbNormal
         CLS = self.get_text_embedding(self.class_name[1] + obj).unsqueeze(0).expand(B, -1, -1)
-        prompt_tmp = torch.concat([SOS, P_dependent, P_independent, CLS, EOS], dim=1)
+        prompt_tmp = torch.concat([SOS, CLS, P_independent, P_dependent, EOS], dim=1).cuda()
         prompt = torch.zeros(77, dtype=torch.long).cuda()
         prompt = self.model.token_embedding(prompt).unsqueeze(0).expand(B, -1, -1)
         for b in range(B):

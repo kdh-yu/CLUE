@@ -17,7 +17,7 @@ class AnomalyModule(nn.Module):
             anomaly_map (tensor):   [B, H, W]
         """
         B = text_features.shape[0]
-        H = W = 7
+        H = W = int((image_features[0].shape[1] - 1)**0.5)
         
         layer_maps = []
         layer_scores = []
@@ -37,27 +37,34 @@ class AnomalyModule(nn.Module):
             
             normal_global_sim = F.cosine_similarity(global_features, normal_text, dim=1)    # [B]
             abnormal_global_sim = F.cosine_similarity(global_features, abnormal_text, dim=1) # [B]
-            curr_score = abnormal_global_sim - normal_global_sim  # [B]
+            #curr_score = torch.sigmoid(abnormal_global_sim - normal_global_sim)  # [B]
+            
             layer_scores.append(torch.stack([normal_global_sim, abnormal_global_sim], dim=1))
         
         # Reweighting
         layer_maps = torch.stack(layer_maps, dim=1)  # [B, L, 7, 7]
         layer_weights = F.softmax(layer_maps.mean(dim=[2, 3]), dim=1)  # [B, L]
-        anomaly_map = torch.sum(layer_maps * layer_weights.unsqueeze(-1).unsqueeze(-1), dim=1)  # [B, 7, 7]
+        anomaly_map_patch = torch.sum(layer_maps * layer_weights.unsqueeze(-1).unsqueeze(-1), dim=1)  # [B, 7, 7]
         
         layer_scores = torch.stack(layer_scores, dim=1)  # [B, L, 2]
         anomaly_score = torch.mean(layer_scores, dim=1)  # [B]
         
+        map_min = anomaly_map_patch.min()
+        map_max = anomaly_map_patch.max()
+        if map_max - map_min > 1e-6: 
+            anomaly_map_patch = (anomaly_map_patch - map_min) / (map_max - map_min)
+        else:
+            anomaly_map_patch = torch.zeros_like(anomaly_map_patch)
+        
         # Upscaling 
         anomaly_map = F.interpolate(
-            anomaly_map.unsqueeze(1),  # [B, 1, 7, 7]
+            anomaly_map_patch.unsqueeze(1),  # [B, 1, 7, 7]
             size=(224, 224),
             mode='bicubic',
             align_corners=False
         ).squeeze(1)  # [B, 224, 224]
         
         # Normalization
-        anomaly_map = (anomaly_map - anomaly_map.min()) / (anomaly_map.max() - anomaly_map.min())
         #anomaly_score = torch.sigmoid(anomaly_score)
         
-        return anomaly_score, anomaly_map
+        return anomaly_score, anomaly_map, anomaly_map_patch

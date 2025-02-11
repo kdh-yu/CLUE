@@ -402,20 +402,15 @@ class CLIP(nn.Module):
 
     def forward(self, 
                 image,                                                  # [B, 3, 224, 224]
-                text: str,                                        # class name 
+                text: str,                                              # class name 
                 CLUE=None,                                              # Prompt Generator + Feature Adaptor
                 am=None):                                               # Image Feature Adaptor
         image_features = self.encode_image(image)
         
         prompt_features = CLUE(text, image_features)
         
-        # cosine similarity as logits
-        logit_scale = self.logit_scale.exp()
-        logit = [logit_scale * i.float() @ prompt_features.transpose(1, 2) for i in image_features]  # [B, 1+P*P, 2]
-        
-        cls_token = logit[-1][:, 0, :]
-        anomaly_score, anomaly_map = am(image_features, prompt_features)
-        return logit_scale * anomaly_score, anomaly_map
+        anomaly_score, anomaly_map, anomaly_map_patch = am(image_features, prompt_features)
+        return self.logit_scale * anomaly_score, anomaly_map, anomaly_map_patch
         
         image_features = [img_feat / img_feat.norm(dim=1, keepdim=True) for img_feat in image_features] 
         

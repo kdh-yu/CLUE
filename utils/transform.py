@@ -20,8 +20,8 @@ def transform(img):
         transforms.ToTensor(),
         _convert,
         _from0_to255,
-        transforms.CenterCrop(224),
-        transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+        transforms.CenterCrop((224, 224)),
+        transforms.Normalize(0.5, 0.5),
     ])
     return tf(img)
 
@@ -29,6 +29,6 @@ def transform_mask(img):
     """transform Grayscale Image to feed to CLIP Image Encoder"""
     tf = transforms.Compose([
         transforms.ToTensor(),
-        transforms.CenterCrop(224),
+        transforms.CenterCrop((224, 224)),
     ])
     return tf(img)
