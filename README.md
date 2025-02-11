@@ -4,7 +4,7 @@ Project at FMISL, SNU
 <center>
 
 [ [Paper](https://github.com/kdh-yu/CLUE/tree/main/files/Paper_imed.pdf) ]
-[ [Poster]((https://github.com/kdh-yu/CLUE/tree/main/files/Poster_DohoonKim.pdf)) ]
+[ [Poster](https://github.com/kdh-yu/CLUE/tree/main/files/Poster_DohoonKim.pdf) ]
 
 </center>
 
